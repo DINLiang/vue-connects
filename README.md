@@ -2,7 +2,7 @@
 基于vue+jointjs的tree连线demo
 
 # demo-img
-![demo-img](vue-connects/src/assets/demo-img.png)
+![demo-img](https://raw.githubusercontent.com/MRxiongyu/vue-connects/develop/src/assets/demo-img.png)
 
 ## Build Setup
 
