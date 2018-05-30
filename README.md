@@ -1,5 +1,9 @@
 # vue-connects
 基于vue+jointjs的tree连线demo
+
+# demo-img
+![demo-img](vue-connects/src/assets/demo-img.png)
+
 ## Build Setup
 
 ``` bash
