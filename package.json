@@ -1,9 +1,10 @@
 {
-  "name": "d3concept",
+  "name": "vue-connects",
   "version": "1.0.0",
   "description": "A Vue.js project",
   "author": "9USQ53G2X113DWQ\\Administrator <247770359@qq.com>",
-  "private": true,
+  "private": false,
+  "license": "MIT",
   "scripts": {
     "dev": "webpack-dev-server --inline --progress --config build/webpack.dev.conf.js",
     "start": "npm run dev",
