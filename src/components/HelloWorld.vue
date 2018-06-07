@@ -20,6 +20,13 @@
                     <li class="nav-item"><a draggable="true" @dragstart="drag">parse-date</a></li>
                 </ul>
             </div>
+            <div class="nav-group">
+                <div class="nav-group__title">string functions</div>
+                <ul class="pure-menu-list" style="height: auto;">
+                    <li class="nav-item"><a draggable="true" @dragstart="drag">concat</a></li>
+                    <li class="nav-item"><a draggable="true" @dragstart="drag">substring</a></li>
+                </ul>
+            </div>
         </div>
         <div ref="paper" id="paper" @drop="drop" @dragover="allowDrop"></div>
     </div>
@@ -55,44 +62,55 @@
             outPorts: ['result']
         },
         string: {
-            inPorts: ['arg'],
-            outPorts: ['result']
+            inPorts: ['arg', 'value1', 'value2'],
+            outPorts: ['parent-context', 'values']
         },
         'parse-date': {
-            inPorts: ['arg'],
-            outPorts: ['parent-context', 'values']
+            inPorts: ['arg', 'value1'],
+            outPorts: ['parent-context', 'values', 'result']
+        },
+        concat: {
+            inPorts: ['value1', 'value2'],
+            outPorts: ['result1'],
+            rightDynamic: true
+        },
+        substring: {
+            inPorts: ['value1'],
+            outPorts: ['result1', 'result2'],
+            leftDynamic: true,
+            rightDynamic: true
         }
     };
 
     // const connects = [
-        //     {
-        //         'sourceId': 'target-data1-1',
-        //         'targetId': 'source-data1'
-        //     },
-        //     {
-        //         'sourceId': 'source-data2-1',
-        //         'targetId': 'target-data1-1-1'
-        //     },
-        //     {
-        //         'sourceId': 'source-data1-1',
-        //         'targetId': 'target-data2-1-1'
-        //     },
-        //     {
-        //         'sourceId': 'source-data2',
-        //         'targetId': 'target-data2-2'
-        //     },
-        //     {
-        //         'sourceId': 'target-data2',
-        //         'targetId': 'source-data2-1'
-        //     },
-        //     {
-        //         'sourceId': 'target-data1',
-        //         'targetId': 'source-data3'
-        //     },
-        //     {
-        //         'sourceId': 'source-data2-2',
-        //         'targetId': 'target-data3'
-        //     }
+    //     {
+    //         'sourceId': 'target-data1-1',
+    //         'targetId': 'source-data1'
+    //     },
+    //     {
+    //         'sourceId': 'source-data2-1',
+    //         'targetId': 'target-data1-1-1'
+    //     },
+    //     {
+    //         'sourceId': 'source-data1-1',
+    //         'targetId': 'target-data2-1-1'
+    //     },
+    //     {
+    //         'sourceId': 'source-data2',
+    //         'targetId': 'target-data2-2'
+    //     },
+    //     {
+    //         'sourceId': 'target-data2',
+    //         'targetId': 'source-data2-1'
+    //     },
+    //     {
+    //         'sourceId': 'target-data1',
+    //         'targetId': 'source-data3'
+    //     },
+    //     {
+    //         'sourceId': 'source-data2-2',
+    //         'targetId': 'target-data3'
+    //     }
     // ];
 
     // 容器默认参数
@@ -241,12 +259,45 @@
     /**
      * 创建规则盒子
      * @param position
+     * @param rule
      */
-    function createRuleBox (position) {
+    function createRuleBox (position, rule) {
+        const toolPlus = {
+            tagName: 'g',
+            className: 'tool',
+            children: [{
+                tagName: 'rect',
+                className: 'tool-left-box'
+            }, {
+                tagName: 'rect',
+                className: 'tool-right-box'
+            }]
+        };
+        const leftAdd = {
+            tagName: 'path',
+            className: 'tool-left-add'
+        };
+        const rightAdd = {
+            tagName: 'path',
+            className: 'tool-right-add'
+        };
+
         class ruleBoxModel extends joint.shapes.basic.Generic {
             constructor (opt) {
                 super(opt);
                 this.prop('type', 'rule');
+                const markup = lodash.cloneDeep(this.get('beanMarkup'));
+                if (rule.rightDynamic || rule.leftDynamic) {
+                    if (rule.leftDynamic) {
+                        toolPlus.children.push(leftAdd);
+                    }
+                    if (rule.rightDynamic) {
+                        toolPlus.children.push(rightAdd);
+                    }
+                    markup.push(toolPlus);
+                    this.set('beanMarkup', markup);
+                }
+                this.set('markup', markup);
             }
         }
 
@@ -270,13 +321,15 @@
                 `<g>
                                 <rect class="left-rect"/>
                                 <text class="option-in-text"/>
+                                <path class="in-port-remove"></path>
                             </g>`,
             markupRightOption:
                 `<g>
                                 <rect class="right-rect"/>
                                 <text class="option-out-text"/>
+                                <path class="out-port-remove"></path>
                             </g>`,
-            markup: [{
+            beanMarkup: [{
                 tagName: 'rect',
                 className: 'body'
             }, {
@@ -307,6 +360,9 @@
                 }, {
                     tagName: 'text',
                     className: 'option-in-text'
+                }, {
+                    tagName: 'path',
+                    className: 'in-port-remove'
                 }]
             },
             markupRightOptionJson: {
@@ -317,6 +373,9 @@
                 }, {
                     tagName: 'text',
                     className: 'option-out-text'
+                }, {
+                    tagName: 'path',
+                    className: 'out-port-remove'
                 }]
             },
             attrs: {
@@ -353,6 +412,89 @@
                 },
                 '.right-container': {
                     refX: .5
+                },
+                '.left-rect': {
+                    stroke: '#000',
+                    strokeWidth: 1,
+                    strokeOpacity: .8,
+                    fill: 'white',
+                    width: ruleNodeStyle.width / 2,
+                    height: ruleNodeStyle.itemHeight
+                },
+                '.right-rect': {
+                    stroke: '#000',
+                    strokeWidth: 1,
+                    strokeOpacity: .8,
+                    fill: 'white',
+                    width: ruleNodeStyle.width / 2,
+                    height: ruleNodeStyle.itemHeight
+                },
+                '.option-in-text': {
+                    fill: '#000000',
+                    fontSize: 12,
+                    fontFamily: 'Arial, helvetica, sans-serif',
+                    text: '',
+                    yAlignment: 'middle',
+                    refX: 20,
+                    refY: ruleNodeStyle.itemHeight / 2
+                },
+                '.option-out-text': {
+                    fill: '#000000',
+                    fontSize: 12,
+                    fontFamily: 'Arial, helvetica, sans-serif',
+                    text: '',
+                    yAlignment: 'middle',
+                    refX: 20,
+                    refY: ruleNodeStyle.itemHeight / 2
+                },
+                '.tool-left-box': {
+                    height: ruleNodeStyle.itemHeight,
+                    width: ruleNodeStyle.width / 2,
+                    stroke: '#000',
+                    strokeWidth: 1,
+                    strokeOpacity: .8,
+                    fill: 'white'
+                },
+                '.tool-right-box': {
+                    height: ruleNodeStyle.itemHeight,
+                    width: ruleNodeStyle.width / 2,
+                    refX: .5,
+                    stroke: '#000',
+                    strokeWidth: 1,
+                    strokeOpacity: .8,
+                    fill: 'white'
+                },
+                '.tool-right-add': {
+                    d: 'M5,0 10,0 10,5 15,5 15,10 10,10 10,15 5,15 5,10 0,10 0,5 5,5z',
+                    cursor: 'pointer',
+                    fill: '#31d0c6',
+                    refX: ruleNodeStyle.width / 4 - 7.5,
+                    refY: ruleNodeStyle.itemHeight / 2 - 7.5,
+                    event: 'element:addInPort'
+                },
+                '.tool-left-add': {
+                    d: 'M5,0 10,0 10,5 15,5 15,10 10,10 10,15 5,15 5,10 0,10 0,5 5,5z',
+                    cursor: 'pointer',
+                    fill: '#31d0c6',
+                    refX: ruleNodeStyle.width / 4 * 3 - 7.5,
+                    refY: ruleNodeStyle.itemHeight / 2 - 7.5,
+                    event: 'element:addOutPort'
+                },
+                '.in-port-remove': {
+                    d: 'M0,0 15,0 15,5 0,5z',
+                    cursor: 'pointer',
+                    fill: '#d03625',
+                    refX: .38,
+                    display: 'none',
+                    event: 'element:removeInPort'
+                },
+                '.out-port-remove': {
+                    d: 'M0,0 15,0 15,5 0,5z',
+                    cursor: 'pointer',
+                    fill: '#d03625',
+                    refX: .38,
+                    display: 'none',
+                    event: 'element:removeOutPort'
                 }
             },
             ports: {
@@ -532,12 +674,10 @@
                 leftContainer.attr('text/text', 'HIS数据源');
                 rightContainer.attr('text/text', 'FIRE数据源');
                 const nodes = [leftContainer, rightContainer];
-                let sourceBum = 0;
-                let targetBum = 0;
 
                 const setSourceChart = (data) => {
                     lodash.forEach(data, (item, index) => {
-                        const nodeItem = createNode(sourceBum, item);
+                        const nodeItem = createNode(index, item);
                         nodeItem
                             .set('outPorts', [''])
                             .setType('source')
@@ -545,7 +685,6 @@
                         // item.children.length ? nodeItem.setExpand(true) : nodeItem.setExpand(false)
                         // leftContainer.embed(nodeItem);
                         nodes.push(nodeItem);
-                        sourceBum++;
 
                         // 递归调用展开子节点
                         // if (!item.children.length)
@@ -556,7 +695,7 @@
 
                 const setTargetChart = (data) => {
                     lodash.forEach(data, (item, index) => {
-                        const nodeItem = createNode(targetBum, item, this.paperWidth);
+                        const nodeItem = createNode(index, item, this.paperWidth);
                         nodeItem
                             .set('inPorts', [''])
                             .setType('target')
@@ -564,7 +703,6 @@
                         // item.children.length ? nodeItem.setExpand(true) : nodeItem.setExpand(false)
                         // rightContainer.embed(nodeItem);
                         nodes.push(nodeItem);
-                        targetBum++;
 
                         // 递归调用展开子节点
                         // if (!item.children.length)
@@ -599,7 +737,11 @@
                         evt.stopPropagation();
                         this.graph.removeCells([cellView.model]);
                     },
-                    'tool:remove': this.disconnectFn
+                    'tool:remove': this.disconnectFn,
+                    'element:addInPort': this.addInPort,
+                    'element:addOutPort': this.addOutPort,
+                    'element:removeInPort': this.removeInPort,
+                    'element:removeOutPort': this.removeOutPort,
                     //     function (linkView, evt) {
                     //     evt.stopPropagation();
                     //     linkView.model.remove();
@@ -635,7 +777,7 @@
                     if (type === 'source') {
                         x = nodeStyle.margin.x + nodeStyle.margin.x + node.tier * nodeStyle.tierWidth;
                     } else {
-                        x = this.paperWidth - container.width - nodeStyle.margin.x + nodeStyle.margin.x;
+                        x = this.paperWidth - container.width + node.tier * nodeStyle.tierWidth;
                     }
                     let y = nodeStyle.margin.y + nodeStyle.margin.y + container.padding.y;
                     y += (nodeStyle.height + nodeStyle.margin.y) * startIndex;
@@ -728,17 +870,17 @@
                 const type = cellView.model.get('type');
                 let flag = false;
 
-                function isConnectFn(data) {
+                function isConnectFn (data) {
                     const isConnect = lodash.filter(data, c => c.isConnect);
                     if (isConnect.length) {
                         flag = true
-                    } else{
-                        if(flag) {
+                    } else {
+                        if (flag) {
                             return;
                         }
                         // 递归查询是否有节点连线
                         lodash.forEach(data, item => {
-                            if(item.children.length) {
+                            if (item.children.length) {
                                 return isConnectFn(item.children)
                             }
                         });
@@ -790,10 +932,11 @@
                     x: evt.layerX,
                     y: evt.layerY
                 };
-                const rule = ruleMap[text];
+                const rule = lodash.cloneDeep(ruleMap[text]);
                 const node = createRuleBox(position, rule);
                 node.attr('.label/text', text);
                 node.set('idInfo', text);
+                node.set('rule', rule);
                 this.graph.addCell(node);
                 this.addElements(node, rule);
 
@@ -819,105 +962,38 @@
                     },
                     markup: '<circle class="port-body joint-port-body" r="10" fill="gray" magnet="true"/>'
                 };
-
-                let maxHeight = 0;
-                // 计算容器宽高 以及 元素所在位置
-                if (rule.inPorts.length !== rule.outPorts.length) {
-                    if (rule.inPorts.length > rule.outPorts.length) {
-                        maxHeight = ruleNodeStyle.itemHeight * rule.inPorts.length;
-                        node.attr('.left-rect', {
-                            height: ruleNodeStyle.itemHeight
-                        });
-                        node.attr('.right-rect', {
-                            height: maxHeight
-                        });
-                        node.attr('.option-in-text', {
-                            refY: ruleNodeStyle.itemHeight / 2
-                        });
-                        node.attr('.option-out-text', {
-                            refY: maxHeight / 2
-                        });
-                        outPort.args.y = maxHeight / 2 + ruleNodeStyle.titleHeight
-                    } else {
-                        maxHeight = ruleNodeStyle.itemHeight * rule.outPorts.length;
-                        node.attr('.left-rect', {
-                            height: maxHeight
-                        });
-                        node.attr('.right-rect', {
-                            height: ruleNodeStyle.itemHeight
-                        });
-                        node.attr('.option-in-text', {
-                            refY: maxHeight / 2
-                        });
-                        node.attr('.option-out-text', {
-                            refY: ruleNodeStyle.itemHeight / 2
-                        });
-                        inPort.args.y = maxHeight / 2 + ruleNodeStyle.titleHeight
-                    }
-                } else {
-                    node.attr('.left-rect', {
-                        height: ruleNodeStyle.itemHeight
-                    });
-                    node.attr('.right-rect', {
-                        height: ruleNodeStyle.itemHeight
-                    });
-                    node.attr('.option-in-text', {
-                        refY: ruleNodeStyle.itemHeight / 2
-                    });
-                    node.attr('.option-out-text', {
-                        refY: ruleNodeStyle.itemHeight / 2
-                    });
-                }
-                ruleNodeStyle.height = maxHeight + ruleNodeStyle.titleHeight;
-
-                // 设置样式
-                node.attr('.left-rect', {
-                    stroke: '#000',
-                    strokeWidth: 1,
-                    strokeOpacity: .8,
-                    fill: 'white',
-                    width: ruleNodeStyle.width / 2
-                });
-                node.attr('.right-rect', {
-                    stroke: '#000',
-                    strokeWidth: 1,
-                    strokeOpacity: .8,
-                    fill: 'white',
-                    width: ruleNodeStyle.width / 2
-                });
-                node.attr('.option-in-text', {
-                    fill: '#000000',
-                    fontSize: 12,
-                    fontFamily: 'Arial, helvetica, sans-serif',
-                    text: 'value1',
-                    yAlignment: 'middle',
-                    refX: 20
-                });
-                node.attr('.option-out-text', {
-                    fill: '#000000',
-                    fontSize: 12,
-                    fontFamily: 'Arial, helvetica, sans-serif',
-                    text: 'value2',
-                    yAlignment: 'middle',
-                    refX: 20
-                });
+                const practical = {
+                    leftItemHeight: ruleNodeStyle.itemHeight,
+                    rightItemHeight: ruleNodeStyle.itemHeight
+                };
 
                 // 获取节点视图
                 const nodeView = this.paper.findViewByModel(node);
                 // 将字符换为svg元素
-                const leftContainer = nodeView.$el.find('.options .left-container');
-                const rightContainer = nodeView.$el.find('.options .right-container');
-                const markup = node.get('markup')
+                const leftContainer = nodeView.$el.find('.options .left-container').empty();
+                const rightContainer = nodeView.$el.find('.options .right-container').empty();
+                const markup = lodash.cloneDeep(node.get('beanMarkup'));
+                // const markup = node.get('markup');
+
+                this.setNodeStyle(node, rule, inPort, outPort, practical);
 
                 // 循环添加元素和port
                 lodash.forEach(rule.inPorts, (item, index) => {
                     const markupLeftOption = joint.V(node.get('markupLeftOption'));
                     markupLeftOption.addClass('option' + index);
                     leftContainer.append(markupLeftOption.node);
-                    node.addPort(inPort);
-                    inPort.args.y += ruleNodeStyle.itemHeight;
+                    inPort.id = item;
+                    if (!node.hasPort(inPort.id)) {
+                        node.addPort(inPort);
+                    } else {
+                        node.portProp(item, 'args/y', inPort.args.y)
+                        // if (rule.inPorts.length < rule.outPorts.length) {
+                        //     node.portProp(item, 'args/y', inPort.args.y)
+                        // }
+                    }
+                    inPort.args.y += practical.leftItemHeight;
                     node.attr(`.left-container .option${index}`, {
-                        refY: index * ruleNodeStyle.itemHeight
+                        refY: index * practical.leftItemHeight
                     });
                     node.attr(`.left-container .option${index} text/text`, item);
 
@@ -929,16 +1005,24 @@
                             m.children[0].children.push(markupLeftOptionJson);
                         }
                     })
-
                 });
+
                 lodash.forEach(rule.outPorts, (item, index) => {
                     const markupRightOption = joint.V(node.get('markupRightOption'));
                     markupRightOption.addClass('option' + index);
                     rightContainer.append(markupRightOption.node);
-                    node.addPort(outPort);
-                    outPort.args.y += ruleNodeStyle.itemHeight;
+                    outPort.id = item;
+                    if (!node.hasPort(outPort.id)) {
+                        node.addPort(outPort);
+                    } else {
+                        node.portProp(item, 'args/y', outPort.args.y)
+                        // if (rule.inPorts.length > rule.outPorts.length) {
+                        //     node.portProp(item, 'args/y', outPort.args.y)
+                        // }
+                    }
+                    outPort.args.y += practical.rightItemHeight;
                     node.attr(`.right-container .option${index}`, {
-                        refY: index * ruleNodeStyle.itemHeight
+                        refY: index * practical.rightItemHeight
                     });
                     node.attr(`.right-container .option${index} text/text`, item);
 
@@ -957,10 +1041,133 @@
                     width: ruleNodeStyle.width,
                     height: ruleNodeStyle.height
                 });
+                node.set('markup', markup);
+            },
+            setNodeStyle (node, rule, inPort, outPort, practical) {
+                //初始化
+                let maxHeight = ruleNodeStyle.itemHeight * rule.inPorts.length;
+
+                // 计算容器宽高 以及 元素所在位置
+                if (rule.inPorts.length !== rule.outPorts.length) {
+                    if (rule.inPorts.length > rule.outPorts.length) {
+                        maxHeight = ruleNodeStyle.itemHeight * rule.inPorts.length;
+                        practical.rightItemHeight = maxHeight / rule.outPorts.length;
+                        node.attr('.left-rect', {
+                            height: ruleNodeStyle.itemHeight
+                        });
+                        node.attr('.right-rect', {
+                            height: maxHeight / rule.outPorts.length
+                        });
+                        node.attr('.option-in-text', {
+                            refY: ruleNodeStyle.itemHeight / 2
+                        });
+                        node.attr('.option-out-text', {
+                            refY: practical.rightItemHeight / 2
+                        });
+                        outPort.args.y = practical.rightItemHeight / 2 + ruleNodeStyle.titleHeight;
+                    } else {
+                        maxHeight = ruleNodeStyle.itemHeight * rule.outPorts.length;
+                        practical.leftItemHeight = maxHeight / rule.inPorts.length;
+                        node.attr('.left-rect', {
+                            height: maxHeight / rule.inPorts.length
+                        });
+                        node.attr('.right-rect', {
+                            height: ruleNodeStyle.itemHeight
+                        });
+                        node.attr('.option-in-text', {
+                            refY: practical.leftItemHeight / 2
+                        });
+                        node.attr('.option-out-text', {
+                            refY: ruleNodeStyle.itemHeight / 2
+                        });
+                        inPort.args.y = practical.leftItemHeight / 2 + ruleNodeStyle.titleHeight;
+                    }
+                } else {
+                    node.attr('.left-rect', {
+                        height: ruleNodeStyle.itemHeight
+                    });
+                    node.attr('.right-rect', {
+                        height: ruleNodeStyle.itemHeight
+                    });
+                    node.attr('.option-in-text', {
+                        refY: ruleNodeStyle.itemHeight / 2
+                    });
+                    node.attr('.option-out-text', {
+                        refY: ruleNodeStyle.itemHeight / 2
+                    });
+                }
+
+                if (rule.rightDynamic || rule.leftDynamic) {
+                    node.attr('.tool', {
+                        refY: maxHeight + ruleNodeStyle.titleHeight
+                    });
+
+                    if (rule.rightDynamic && rule.inPorts.length > 2) {
+                        node.attr('.in-port-remove', {
+                            display: 'block',
+                            refY: practical.leftItemHeight / 2 - 2
+                        });
+                    } else {
+                        node.attr('.in-port-remove', {
+                            display: 'none',
+                            refY: practical.leftItemHeight / 2 - 2
+                        });
+                    }
+
+                    if (rule.leftDynamic && rule.outPorts.length > 2) {
+                        node.attr('.out-port-remove', {
+                            display: 'block',
+                            refY: practical.rightItemHeight / 2 - 2
+                        });
+                    } else {
+                        node.attr('.out-port-remove', {
+                            display: 'none',
+                            refY: practical.rightItemHeight / 2 - 2
+                        })
+                    }
+                    ruleNodeStyle.height = maxHeight + ruleNodeStyle.titleHeight + ruleNodeStyle.itemHeight;
+                } else {
+                    ruleNodeStyle.height = maxHeight + ruleNodeStyle.titleHeight
+                }
             },
             save () {
                 window.cells = this.graph.getCells()
-            }
+            },
+            addInPort (cellView) {
+                const rule = cellView.model.get('rule');
+                // rule.inPorts.push(`value${rule.inPorts.length + 1}`);
+                rule.inPorts.push('');
+                rule.inPorts = lodash.map(rule.inPorts, (port, index) => port = `value${index + 1}`);
+                this.addElements(cellView.model, rule);
+            },
+            addOutPort (cellView) {
+                const rule = cellView.model.get('rule');
+                // rule.outPorts.push(`result${rule.outPorts.length + 1}`);
+                rule.outPorts.push('');
+                rule.outPorts = lodash.map(rule.outPorts, (port, index) => port = `result${index + 1}`);
+                this.addElements(cellView.model, rule);
+            },
+            removeInPort (cellView, evt) {
+                // const value = $(evt.target).prev('text').text();
+                const value = evt.target.previousSibling.childNodes[0].innerHTML;
+                const rule = cellView.model.get('rule');
+                rule.inPorts = lodash.filter(rule.inPorts, port => port !== value);
+                // rule.inPorts.pop();
+                // rule.inPorts = lodash.map(rule.inPorts, (port, index) => port = `value${index + 1}`);
+                this.addElements(cellView.model, rule);
+                cellView.model.removePort(value);
+            },
+            removeOutPort (cellView, evt) {
+                // const value = $(evt.target).prev('text').text();
+                const value = evt.target.previousSibling.childNodes[0].innerHTML;
+                const rule = cellView.model.get('rule');
+                rule.outPorts = lodash.filter(rule.outPorts, port => port !== value);
+                // rule.outPorts.pop();
+                // rule.outPorts = lodash.map(rule.outPorts, (port, index) => port = `value${index + 1}`);
+                this.addElements(cellView.model, rule);
+                console.log(cellView.model.hasPort(value))
+                cellView.model.removePort(value);
+            },
         }
     }
 </script>
@@ -984,7 +1191,7 @@
     #paper {
         flex: 9;
         height: 100%;
-        width: 100%
+        width: 100%;
     }
 
     .joint-paper.joint-theme-default {

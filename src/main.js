@@ -8,6 +8,8 @@ import 'jointjs/dist/joint.min.css'
 // lodash
 import 'lodash'
 window.lodash = _;
+// import $ from 'jquery';
+// window.$ = $;
 
 Vue.config.productionTip = false
 
