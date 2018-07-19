@@ -82,37 +82,6 @@
         }
     };
 
-    // const connects = [
-    //     {
-    //         'sourceId': 'target-data1-1',
-    //         'targetId': 'source-data1'
-    //     },
-    //     {
-    //         'sourceId': 'source-data2-1',
-    //         'targetId': 'target-data1-1-1'
-    //     },
-    //     {
-    //         'sourceId': 'source-data1-1',
-    //         'targetId': 'target-data2-1-1'
-    //     },
-    //     {
-    //         'sourceId': 'source-data2',
-    //         'targetId': 'target-data2-2'
-    //     },
-    //     {
-    //         'sourceId': 'target-data2',
-    //         'targetId': 'source-data2-1'
-    //     },
-    //     {
-    //         'sourceId': 'target-data1',
-    //         'targetId': 'source-data3'
-    //     },
-    //     {
-    //         'sourceId': 'source-data2-2',
-    //         'targetId': 'target-data3'
-    //     }
-    // ];
-
     // 容器默认参数
     const container = {
         width: 320,
@@ -207,7 +176,7 @@
             // arrowheadMove elementMove addLinkFromMagnet
             interactive (element) {
                 let flag = false;
-                if (element.model.get('type') === 'rule') {
+                if (element.model.get('typeInfo') === 'rule') {
                     flag = true
                 }
                 return {
@@ -285,7 +254,7 @@
         class ruleBoxModel extends joint.shapes.basic.Generic {
             constructor (opt) {
                 super(opt);
-                this.prop('type', 'rule');
+                this.prop('typeInfo', 'rule');
                 const markup = lodash.cloneDeep(this.get('beanMarkup'));
                 if (rule.rightDynamic || rule.leftDynamic) {
                     if (rule.leftDynamic) {
@@ -557,16 +526,16 @@
                 }
             }
 
-            setType (type) {
-                return this.prop('type', type)
+            setType (typeInfo) {
+                return this.prop('typeInfo', typeInfo)
             }
 
             get data () {
                 return this.prop('data')
             }
 
-            get type () {
-                return this.prop('type')
+            get typeInfo () {
+                return this.prop('typeInfo')
             }
 
             get tier () {
@@ -671,8 +640,8 @@
             init () {
                 const leftContainer = createContainer();
                 const rightContainer = createContainer(this.paperWidth);
-                leftContainer.attr('text/text', 'HIS数据源');
-                rightContainer.attr('text/text', 'FIRE数据源');
+                leftContainer.attr('text/text', '数据源');
+                rightContainer.attr('text/text', '目标');
                 const nodes = [leftContainer, rightContainer];
 
                 const setSourceChart = (data) => {
@@ -684,6 +653,9 @@
                             .setExpand(false);
                         // item.children.length ? nodeItem.setExpand(true) : nodeItem.setExpand(false)
                         // leftContainer.embed(nodeItem);
+                        if (item.children.length) {
+                            // nodeItem.set('markup', '<g class="rotatable"><rect class="body"/><polygon /><text class="label"/></g>');
+                        }
                         nodes.push(nodeItem);
 
                         // 递归调用展开子节点
@@ -700,8 +672,12 @@
                             .set('inPorts', [''])
                             .setType('target')
                             .setExpand(false);
+
                         // item.children.length ? nodeItem.setExpand(true) : nodeItem.setExpand(false)
                         // rightContainer.embed(nodeItem);
+                        if (item.children.length) {
+                            // nodeItem.set('markup', '<g class="rotatable"><rect class="body"/><polygon /><text class="label"/></g>');
+                        }
                         nodes.push(nodeItem);
 
                         // 递归调用展开子节点
@@ -741,7 +717,7 @@
                     'element:addInPort': this.addInPort,
                     'element:addOutPort': this.addOutPort,
                     'element:removeInPort': this.removeInPort,
-                    'element:removeOutPort': this.removeOutPort,
+                    'element:removeOutPort': this.removeOutPort
                     //     function (linkView, evt) {
                     //     evt.stopPropagation();
                     //     linkView.model.remove();
@@ -751,14 +727,14 @@
             },
             /**
              * 收缩tree
-             * @param type
+             * @param typeInfo
              * @param cellView
              * @param models
              */
-            operationCloseTree (type, cellView, models) {
-                models = lodash.filter(models, m => m.type === type);
+            operationCloseTree (typeInfo, cellView, models) {
+                models = lodash.filter(models, m => m.typeInfo === typeInfo);
                 let startIndex = lodash.findIndex(models, m => m.cid === cellView.cid);
-                let endIndex = 0;
+                let endIndex = models.length - 1;
                 let removeNodes = [];
                 for (let i = startIndex + 1; i < models.length; i++) {
                     if (models[i].tier <= cellView.tier) {
@@ -774,7 +750,7 @@
                 lodash.forEach(moveNodes, node => {
                     startIndex++;
                     let x = 0;
-                    if (type === 'source') {
+                    if (typeInfo === 'source') {
                         x = nodeStyle.margin.x + nodeStyle.margin.x + node.tier * nodeStyle.tierWidth;
                     } else {
                         x = this.paperWidth - container.width + node.tier * nodeStyle.tierWidth;
@@ -787,12 +763,12 @@
             },
             /**
              * 展开tree
-             * @param type
+             * @param typeInfo
              * @param cellView
              * @param models
              */
-            operationExpandTree (type, cellView, models) {
-                models = lodash.filter(models, m => m.type === type);
+            operationExpandTree (typeInfo, cellView, models) {
+                models = lodash.filter(models, m => m.typeInfo === typeInfo);
                 // let otherModels;
                 // if (type === 'source') {
                 //     otherModels = lodash.filter(this.graph.getCells(), m => m.type === 'target');
@@ -817,7 +793,7 @@
                 lodash.forEach(cellView.data.children, node => {
                     startIndex++;
                     let nodeItem;
-                    if (type === 'source') {
+                    if (typeInfo === 'source') {
                         nodeItem = createNode(startIndex, node);
                         nodeItem
                             .set('outPorts', [''])
@@ -836,7 +812,7 @@
 
                 for (let i = startIndex + 1; i < models.length; i++) {
                     let x = 0;
-                    if (type === 'source') {
+                    if (typeInfo === 'source') {
                         x = nodeStyle.margin.x + nodeStyle.margin.x + models[i].tier * nodeStyle.tierWidth;
                     } else {
                         x = this.paperWidth - container.width - nodeStyle.margin.x + nodeStyle.margin.x + models[i].tier * nodeStyle.tierWidth;
@@ -867,7 +843,7 @@
              */
             treeClick (cellView) {
                 const expand = cellView.model.get('expand');
-                const type = cellView.model.get('type');
+                const typeInfo = cellView.model.get('typeInfo');
                 let flag = false;
 
                 function isConnectFn (data) {
@@ -887,7 +863,7 @@
                     }
                 }
 
-                if ((type !== 'source' && type !== 'target') || !cellView.model.data || !cellView.model.data.children.length)
+                if ((typeInfo !== 'source' && typeInfo !== 'target') || !cellView.model.data || !cellView.model.data.children.length)
                     return;
 
                 if (expand) {
@@ -896,11 +872,11 @@
                     if (flag) {
                         return;
                     }
-                    this.operationCloseTree(type, cellView.model, cellView.model.collection.models);
+                    this.operationCloseTree(typeInfo, cellView.model, cellView.model.collection.models);
                     cellView.model.set('expand', false);
                     cellView.model.expandFn(false);
                 } else {
-                    this.operationExpandTree(type, cellView.model, cellView.model.collection.models);
+                    this.operationExpandTree(typeInfo, cellView.model, cellView.model.collection.models);
                     cellView.model.set('expand', true);
                     cellView.model.expandFn(true);
                 }
@@ -915,8 +891,8 @@
                 this.setIsConnect(linkView.model.getTargetElement(), true);
             },
             setIsConnect (model, boole) {
-                const type = model.get('type');
-                if (type === 'source' || type === 'target') {
+                const typeInfo = model.get('typeInfo');
+                if (typeInfo === 'source' || typeInfo === 'target') {
                     model.data.isConnect = boole;
                 }
             },
@@ -939,7 +915,6 @@
                 node.set('rule', rule);
                 this.graph.addCell(node);
                 this.addElements(node, rule);
-
             },
             drag (evt) {
                 evt.dataTransfer.setData("value", evt.target.innerHTML);
@@ -1131,7 +1106,9 @@
                 }
             },
             save () {
-                window.cells = this.graph.getCells()
+                window.cells = JSON.stringify(this.graph.getCells())
+                // console.log(this.graph.toJSON())
+                // window.cells = JSON.stringify(this.graph.toJSON());
             },
             addInPort (cellView) {
                 const rule = cellView.model.get('rule');
